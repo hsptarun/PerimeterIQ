@@ -1,0 +1,39 @@
+# Git
+.git
+.gitignore
+
+# Python environments and caches
+**/.venv/
+**/venv/
+**/__pycache__/
+**/*.py[cod]
+**/.pytest_cache/
+**/.mypy_cache/
+**/.ruff_cache/
+**/.coverage
+**/htmlcov/
+
+# Node dependencies and generated builds
+**/node_modules/
+frontend/dist/
+
+# Local caches and backups
+.cache/
+.local-backups/
+
+# Secrets
+.env
+.env.*
+!.env.example
+
+# Runtime data and logs
+**/uploads/
+**/outputs/
+**/*.db
+**/*.sqlite
+**/*.sqlite3
+*.log
+
+# macOS
+.DS_Store
+**/.DS_Store

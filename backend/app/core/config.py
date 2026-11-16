@@ -24,12 +24,13 @@ class Settings(BaseSettings):
 
     # -- Model --
     model_path: Path = BASE_DIR / "models" / "yolov8_model.pt"
-    device: str = "auto"  # "auto" | "cpu" | "cuda"
+    device: str = "auto"  # "auto" | "cpu" | "cuda" | "mps"
     default_confidence_threshold: float = 0.4
 
     # -- Storage --
     upload_dir: Path = BASE_DIR / "data" / "uploads"
     output_dir: Path = BASE_DIR / "outputs"
+    camera_db_path: Path = BASE_DIR / "backend" / "data" / "cameras.db"
     max_upload_mb: int = 500  # rejects mid-stream; see utils/video_io.save_upload
 
     # -- API --
@@ -49,7 +50,11 @@ class Settings(BaseSettings):
             return self.device
         import torch
 
-        return "cuda" if torch.cuda.is_available() else "cpu"
+        if torch.cuda.is_available():
+            return "cuda"
+        if torch.backends.mps.is_available():
+            return "mps"
+        return "cpu"
 
 
 settings = Settings()

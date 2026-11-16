@@ -32,6 +32,7 @@ class RuleConfig:
     history_len: int = 30                   # length of track history to maintain; also how long a track
                                              # may go unseen before its open incidents are force-closed
     weapon_class_names: frozenset[str] = frozenset({"weapon"})
+    abandoned_object_class_names: frozenset[str] = frozenset({"backpack", "handbag", "suitcase"})
 
 
 @dataclass
@@ -214,7 +215,10 @@ class RuleEngine:
                     message=f"Perimeter line crossed (track {track_id})", track_id=track_id,
                 ))
 
-        if len(history) >= self.config.stationary_frames:
+        if (
+            latest.class_name.lower() in self.config.abandoned_object_class_names
+            and len(history) >= self.config.stationary_frames
+        ):
             recent = list(history)[-self.config.stationary_frames:]
             centers = np.array([self._center(p.bbox) for p in recent])
             stationary_active = bool(np.all(np.ptp(centers, axis=0) < self.config.stationary_max_range_px))
@@ -234,8 +238,9 @@ class RuleEngine:
         is_active = False
         representative_center: tuple[float, float] | None = None
 
-        if len(detections) >= self.config.group_min_count:
-            centers = [self._center(d.bbox) for d in detections]
+        people = [d for d in detections if d.class_name.lower() == "person"]
+        if len(people) >= self.config.group_min_count:
+            centers = [self._center(d.bbox) for d in people]
             for i, center in enumerate(centers):
                 nearby = sum(
                     1 for j, other in enumerate(centers)

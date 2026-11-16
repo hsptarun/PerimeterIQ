@@ -79,4 +79,11 @@ outputs/
 
 important.txt
 
-hf-auth-test
+hf-auth-test.cache/
+.local-backups/
+/backend/detection-test.jpg
+/frontend/camera-test.jpg
+/.cache/
+
+# Keep the model required by the Docker deployment
+!/models/yolov8n.pt

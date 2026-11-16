@@ -6,6 +6,7 @@ piece can be tested/swapped independently.
 """
 from __future__ import annotations
 
+import threading
 from pathlib import Path
 
 import torch
@@ -17,6 +18,7 @@ class YOLODetector:
         self.model_path = Path(model_path)
         self.device = device or ("cuda" if torch.cuda.is_available() else "cpu")
         self.model: YOLO | None = None
+        self._inference_lock = threading.Lock()
 
     def load(self) -> None:
         """Load weights from disk. Safe to call more than once (no-op after the first)."""
@@ -37,8 +39,9 @@ class YOLODetector:
 
     def detect(self, frame, confidence_threshold: float = 0.25):
         """Run inference on a single BGR frame and return the raw Ultralytics result."""
-        self._ensure_loaded()
-        return self.model(frame, conf=confidence_threshold, verbose=False)[0]
+        with self._inference_lock:
+            self._ensure_loaded()
+            return self.model(frame, conf=confidence_threshold, verbose=False)[0]
 
     def _ensure_loaded(self) -> None:
         if self.model is None:

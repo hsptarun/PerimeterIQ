@@ -11,12 +11,15 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
+from app.api.cameras import router as cameras_router
 from app.api.health import router as health_router
 from app.api.stream import router as stream_router
 from app.api.video import router as video_router
 from app.core import registry
 from app.core.config import settings
 from app.core.detector import YOLODetector
+from app.services.camera_detection import camera_detection_manager
+from app.services.camera_manager import camera_manager
 
 
 @asynccontextmanager
@@ -30,6 +33,8 @@ async def lifespan(_app: FastAPI):            # this function is called at start
     except Exception as exc:  # noqa: BLE001 - startup must not crash the app on a missing model
         print(f"[startup] YOLO model NOT loaded: {exc}")
     yield
+    camera_detection_manager.stop_all()
+    camera_manager.disconnect_all()
     registry.yolo_detector = None
 
 
@@ -51,6 +56,7 @@ app.add_middleware(     # CORS middleware allows cross-origin requests from spec
 )
 
 app.include_router(health_router)
+app.include_router(cameras_router)
 app.include_router(video_router)
 app.include_router(stream_router)
 

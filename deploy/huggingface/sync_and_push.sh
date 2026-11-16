@@ -24,7 +24,7 @@ SPACE_URL="${1:?Usage: sync_and_push.sh <space-git-url> [\"commit message\"]}"
 MESSAGE="${2:-Sync from main repo}"
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-MODEL_PATH="$REPO_ROOT/models/yolov8_model.pt"
+MODEL_PATH="$REPO_ROOT/models/yolov8n.pt"
 
 if [ ! -f "$MODEL_PATH" ]; then
   echo "ERROR: $MODEL_PATH not found." >&2
@@ -49,7 +49,7 @@ cp "$REPO_ROOT/frontend/package.json" "$REPO_ROOT/frontend/package-lock.json" \
    "$REPO_ROOT/frontend/tsconfig.node.json" \
    "$WORKDIR/frontend/"
 
-cp "$MODEL_PATH" "$WORKDIR/models/yolov8_model.pt"
+cp "$MODEL_PATH" "$WORKDIR/models/yolov8n.pt"
 cp "$REPO_ROOT/deploy/huggingface/Dockerfile" "$WORKDIR/Dockerfile"
 cp "$REPO_ROOT/deploy/huggingface/README.md" "$WORKDIR/README.md"
 

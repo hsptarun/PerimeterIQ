@@ -116,12 +116,23 @@ def test_line_breach_detected_when_track_crosses_the_line():
     assert any(a.type == "line_breach" for a in alerts)
 
 
-def test_dropped_object_after_prolonged_stationarity():
+def test_stationary_person_does_not_trigger_dropped_object():
     engine = make_engine(stationary_frames=3, stationary_max_range_px=5)
     alerts = []
     for frame in range(3):
         alerts = engine.process_frame(
             frame, [Detection(track_id=1, class_name="person", confidence=0.9, bbox=[50, 50, 60, 60])], 640, 480
+        )
+
+    assert not any(a.type == "dropped_object" for a in alerts)
+
+
+def test_stationary_non_person_triggers_dropped_object():
+    engine = make_engine(stationary_frames=3, stationary_max_range_px=5)
+    alerts = []
+    for frame in range(3):
+        alerts = engine.process_frame(
+            frame, [Detection(track_id=1, class_name="backpack", confidence=0.9, bbox=[50, 50, 60, 60])], 640, 480
         )
 
     assert any(a.type == "dropped_object" and a.event == "started" for a in alerts)

@@ -41,9 +41,9 @@ COPY backend/app ./app
 COPY --from=frontend-build /app/dist ./static
 # Real weights, not the .dvc pointer: the Space can't run `dvc pull` against
 # a personal remote, so sync_and_push.sh copies the actual .pt file in here.
-COPY models/yolov8_model.pt ./models/yolov8_model.pt
+COPY models/yolov8n.pt ./models/yolov8n.pt
 
-ENV IDS_MODEL_PATH=/srv/models/yolov8_model.pt \
+ENV IDS_MODEL_PATH=/srv/models/yolov8n.pt \
     IDS_UPLOAD_DIR=/srv/data/uploads \
     IDS_OUTPUT_DIR=/srv/outputs \
     IDS_FRONTEND_DIST_DIR=/srv/static

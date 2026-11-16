@@ -16,6 +16,7 @@ from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 
 from app.core import registry
 from app.core.config import settings
+from app.core.mps_embedder import MPSMobileNetV2Embedder
 from app.core.rules import RuleEngine
 from app.core.tracker import ObjectTracker
 from app.services.pipeline import process_frame
@@ -38,7 +39,9 @@ async def stream_endpoint(websocket: WebSocket):
         await websocket.close(code=1011)
         return
 
-    tracker = ObjectTracker()
+    shared_embedder = MPSMobileNetV2Embedder()
+    tracker = ObjectTracker(embedder=shared_embedder)
+    object_tracker = ObjectTracker(embedder=shared_embedder)
     rule_engine = RuleEngine(fps=ASSUMED_LIVE_STREAM_FPS)
     frame_id = 0
 
@@ -54,6 +57,7 @@ async def stream_endpoint(websocket: WebSocket):
             annotated, detections, alerts = process_frame(
                 frame, detector, tracker, rule_engine, frame_id,
                 confidence_threshold=settings.default_confidence_threshold,
+                object_tracker=object_tracker,
             )
 
             ok, jpeg = cv2.imencode(".jpg", annotated)

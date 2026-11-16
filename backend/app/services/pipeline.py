@@ -12,11 +12,14 @@ from pathlib import Path
 import cv2
 
 from app.core.detector import YOLODetector
+from app.core.mps_embedder import MPSMobileNetV2Embedder
 from app.core.rules import RuleEngine
 from app.core.tracker import ObjectTracker
 from app.schemas.detection import Alert, Detection
 
 _BOX_COLOR = (0, 255, 0)
+_OBJECT_BOX_COLOR = (0, 165, 255)
+_ABANDONABLE_OBJECT_CLASSES = frozenset({"backpack", "handbag", "suitcase"})
 
 
 def process_frame(
@@ -27,43 +30,65 @@ def process_frame(
     frame_id: int,
     confidence_threshold: float = 0.4,
     draw: bool = True,
+    object_tracker: ObjectTracker | None = None,
 ) -> tuple[object, list[Detection], list[Alert]]:
     """Run one frame through the full pipeline. Mutates `frame` in place when
     `draw=True` and also returns it, so callers can chain calls easily."""
     height, width = frame.shape[:2]
     results = detector.detect(frame, confidence_threshold)
 
-    yolo_dets = []
+    person_dets = []
+    object_dets = []
+
     for box in results.boxes:
         conf = float(box.conf[0])
         x1, y1, x2, y2 = map(int, box.xyxy[0])
         cls_id = int(box.cls[0])
-        cls_name = results.names[cls_id]
-        yolo_dets.append(([x1, y1, x2 - x1, y2 - y1], conf, cls_name))
+        cls_name = str(results.names[cls_id]).lower()
+        detection = ([x1, y1, x2 - x1, y2 - y1], conf, cls_name)
 
-    tracks = tracker.update(yolo_dets, frame)
+        if cls_name == "person":
+            person_dets.append(detection)
+        elif cls_name in _ABANDONABLE_OBJECT_CLASSES:
+            object_dets.append(detection)
+
+    person_tracks = tracker.update(person_dets, frame)
+    object_tracks = (
+        object_tracker.update(object_dets, frame)
+        if object_tracker is not None
+        else []
+    )
 
     detections: list[Detection] = []
-    for track in tracks:
+    for track, is_object in (
+        [(track, False) for track in person_tracks]
+        + [(track, True) for track in object_tracks]
+    ):
         if not track.is_confirmed():
             continue
 
         bx1, by1, bx2, by2 = map(int, track.to_ltrb())
-        cls_name = track.get_det_class() or "unknown"
-        conf = track.get_det_conf() or 0.0
+        cls_name = str(track.get_det_class() or "unknown").lower()
+        conf = track.get_det_conf()
+        if conf is None:
+            continue
+
+        raw_track_id = int(track.track_id)
+        track_id = -abs(raw_track_id) if is_object else abs(raw_track_id)
 
         detections.append(Detection(
-            track_id=int(track.track_id),
+            track_id=track_id,
             class_name=cls_name,
             confidence=round(float(conf), 3),
             bbox=[bx1, by1, bx2, by2],
         ))
 
         if draw:
-            cv2.rectangle(frame, (bx1, by1), (bx2, by2), _BOX_COLOR, 2)
+            color = _OBJECT_BOX_COLOR if is_object else _BOX_COLOR
+            cv2.rectangle(frame, (bx1, by1), (bx2, by2), color, 2)
             cv2.putText(
-                frame, f"{cls_name} #{track.track_id}", (bx1, max(by1 - 8, 0)),
-                cv2.FONT_HERSHEY_SIMPLEX, 0.55, _BOX_COLOR, 2,
+                frame, f"{cls_name} #{track_id}", (bx1, max(by1 - 8, 0)),
+                cv2.FONT_HERSHEY_SIMPLEX, 0.55, color, 2,
             )
 
     alerts = rule_engine.process_frame(frame_id, detections, width, height)
@@ -79,7 +104,9 @@ def run_video_job(job, input_path: Path, output_path: Path, confidence_threshold
     if detector is None:
         raise RuntimeError("Detector not initialized — model failed to load at startup")
 
-    tracker = ObjectTracker()
+    shared_embedder = MPSMobileNetV2Embedder()
+    tracker = ObjectTracker(embedder=shared_embedder)
+    object_tracker = ObjectTracker(embedder=shared_embedder)
 
     cap = cv2.VideoCapture(str(input_path))
     if not cap.isOpened():
@@ -116,6 +143,7 @@ def run_video_job(job, input_path: Path, output_path: Path, confidence_threshold
 
             annotated, _detections, alerts = process_frame(
                 frame, detector, tracker, rule_engine, frame_id, confidence_threshold,
+                object_tracker=object_tracker,
             )
             writer.write(annotated)
             job.alerts.extend(alerts)

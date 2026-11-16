@@ -15,7 +15,7 @@ short_description: YOLOv8 + DeepSORT intrusion detection with live alerts
 Live demo of a YOLOv8 + DeepSORT intrusion-detection pipeline: upload a
 video (or use your webcam) to get object detection, multi-object tracking,
 and rule-based alerts (restricted-zone intrusion, perimeter-line breach,
-fast movement, dropped objects, weapon detection, group gathering) as an
+fast movement, dropped objects, group gathering) as an
 incident timeline — not a ping every frame.
 
 **This Space runs on free CPU hardware**, so video processing is slower

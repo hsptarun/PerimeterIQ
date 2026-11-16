@@ -86,3 +86,126 @@ export function streamSocketUrl(): string {
   url.protocol = url.protocol === "https:" ? "wss:" : "ws:";
   return url.toString();
 }
+
+export interface Camera {
+  id: number;
+  name: string;
+  source_type: "webcam" | "rtsp";
+  source: string;
+  enabled: boolean;
+  created_at: string;
+}
+
+export interface CameraCreate {
+  name: string;
+  source_type: "webcam" | "rtsp";
+  source: string;
+}
+
+export async function getCameras(): Promise<Camera[]> {
+  const res = await fetch(resolveUrl("/api/cameras"));
+  if (!res.ok) throw new Error("Failed to load cameras");
+  return res.json() as Promise<Camera[]>;
+}
+
+export async function addCamera(data: CameraCreate): Promise<Camera> {
+  const res = await fetch(resolveUrl("/api/cameras"), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) {
+    const body = await res.json() as { detail?: string };
+    throw new Error(body.detail ?? "Failed to register camera");
+  }
+  return res.json() as Promise<Camera>;
+}
+
+export async function updateCamera(
+  id: number,
+  data: { name: string; enabled: boolean },
+): Promise<Camera> {
+  const res = await fetch(resolveUrl(`/api/cameras/${id}`), {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) throw new Error("Failed to update camera");
+  return res.json() as Promise<Camera>;
+}
+
+export async function deleteCamera(id: number): Promise<void> {
+  const res = await fetch(resolveUrl(`/api/cameras/${id}`), {
+    method: "DELETE",
+  });
+  if (!res.ok) throw new Error("Failed to delete camera");
+}
+
+export interface CameraConnectionStatus {
+  camera_id: number;
+  status: string;
+  error: string | null;
+}
+
+export interface CameraDetectionStatus {
+  camera_id: number;
+  status: string;
+  error: string | null;
+  processed_frames: number;
+  detection_fps_target: number;
+}
+
+export interface CameraDetectionResults {
+  camera_id: number;
+  detections: Detection[];
+  alerts: Alert[];
+  processed_frames: number;
+}
+
+async function cameraRequest<T>(path: string, method = "GET"): Promise<T> {
+  const res = await fetch(resolveUrl(path), { method });
+  if (!res.ok) {
+    const body = await safeErrorDetail(res);
+    throw new Error(body ?? `Camera request failed (HTTP ${res.status})`);
+  }
+  if (res.status === 204) return undefined as T;
+  return res.json() as Promise<T>;
+}
+
+export function connectCamera(id: number) {
+  return cameraRequest<CameraConnectionStatus>(`/api/cameras/${id}/connect`, "POST");
+}
+
+export function disconnectCamera(id: number) {
+  return cameraRequest<CameraConnectionStatus>(`/api/cameras/${id}/disconnect`, "POST");
+}
+
+export function getCameraConnections() {
+  return cameraRequest<CameraConnectionStatus[]>("/api/cameras/connections/status");
+}
+
+export function startCameraDetection(id: number) {
+  return cameraRequest<CameraDetectionStatus>(
+    `/api/cameras/${id}/detection/start`,
+    "POST",
+  );
+}
+
+export function stopCameraDetection(id: number) {
+  return cameraRequest<{ camera_id: number; status: string }>(
+    `/api/cameras/${id}/detection/stop`,
+    "POST",
+  );
+}
+
+export function getCameraDetectionStatus(id: number) {
+  return cameraRequest<CameraDetectionStatus>(`/api/cameras/${id}/detection/status`);
+}
+
+export function getCameraDetectionResults(id: number) {
+  return cameraRequest<CameraDetectionResults>(`/api/cameras/${id}/detection/results`);
+}
+
+export function cameraDetectionFrameUrl(id: number, version: number) {
+  return resolveUrl(`/api/cameras/${id}/detection/frame?v=${version}`);
+}
