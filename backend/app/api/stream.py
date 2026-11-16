@@ -9,6 +9,7 @@ rules) persists correctly across frames.
 from __future__ import annotations
 
 import asyncio
+import hmac
 import base64
 
 import cv2
@@ -32,6 +33,10 @@ ASSUMED_LIVE_STREAM_FPS = 5.0
 
 @router.websocket("/ws/stream")
 async def stream_endpoint(websocket: WebSocket):
+    token = websocket.query_params.get("access_token", "")
+    if not settings.inference_token or not hmac.compare_digest(token, settings.inference_token):
+        await websocket.close(code=4401)
+        return
     await websocket.accept()
 
     detector = registry.yolo_detector

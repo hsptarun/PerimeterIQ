@@ -10,7 +10,7 @@ from deep_sort_realtime.embedder.embedder_pytorch import MobileNetv2_Embedder
 class MPSMobileNetV2Embedder:
     def __init__(self, max_batch_size: int = 16, bgr: bool = True):
         self.base = MobileNetv2_Embedder(
-            half=False,
+            half=True,
             max_batch_size=max_batch_size,
             bgr=bgr,
             gpu=False,
@@ -20,6 +20,8 @@ class MPSMobileNetV2Embedder:
             "mps" if torch.backends.mps.is_available() else "cpu"
         )
         self.base.model.to(self.device)
+        if self.device.type == 'mps':
+            self.base.model.half()
         self.max_batch_size = max_batch_size
 
     def predict(self, images: list[np.ndarray]) -> list[np.ndarray]:
@@ -34,6 +36,8 @@ class MPSMobileNetV2Embedder:
                 prepared[start:start + self.max_batch_size],
                 dim=0,
             ).to(self.device)
+            if self.device.type == 'mps':
+                batch = batch.half()
 
             with torch.inference_mode():
                 output = self.base.model(batch)

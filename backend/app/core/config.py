@@ -33,6 +33,7 @@ class Settings(BaseSettings):
     camera_db_path: Path = BASE_DIR / "backend" / "data" / "cameras.db"
     supabase_url: str = ""
     supabase_key: str = ""
+    inference_token: str = ""
     max_upload_mb: int = 500  # rejects mid-stream; see utils/video_io.save_upload
 
     # -- API --

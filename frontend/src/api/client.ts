@@ -39,6 +39,28 @@ export interface JobStatus {
 // Space image) set VITE_API_URL="" at build time to get same-origin
 // requests instead — see deploy/huggingface/Dockerfile.
 const API_BASE_URL = import.meta.env.VITE_API_URL ?? "http://localhost:8000";
+const INFERENCE_API_BASE_URL = import.meta.env.VITE_INFERENCE_API_URL ?? API_BASE_URL;
+
+let inferenceAccessToken = "";
+
+function inferenceHeaders(): HeadersInit {
+  return inferenceAccessToken
+    ? { Authorization: `Bearer ${inferenceAccessToken}` }
+    : {};
+}
+
+export async function verifyInferenceAccess(token: string): Promise<void> {
+  const res = await fetch(resolveInferenceUrl("/auth/verify"), {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!res.ok) throw new Error("Invalid demo access code");
+  inferenceAccessToken = token;
+}
+
+function resolveInferenceUrl(path: string): string {
+  return `${INFERENCE_API_BASE_URL}${path}`;
+}
 
 export function resolveUrl(path: string): string {
   return `${API_BASE_URL}${path}`;
@@ -49,7 +71,7 @@ export async function submitVideo(file: File, confidenceThreshold: number): Prom
   formData.append("file", file);
   formData.append("confidence_threshold", String(confidenceThreshold));
 
-  const res = await fetch(resolveUrl("/infer/video"), { method: "POST", body: formData });
+  const res = await fetch(resolveInferenceUrl("/infer/video"), { method: "POST", headers: inferenceHeaders(), body: formData });
   if (!res.ok) {
     throw new Error((await safeErrorDetail(res)) ?? `Upload failed (HTTP ${res.status})`);
   }
@@ -57,7 +79,7 @@ export async function submitVideo(file: File, confidenceThreshold: number): Prom
 }
 
 export async function getJobStatus(jobId: string): Promise<JobStatus> {
-  const res = await fetch(resolveUrl(`/infer/video/${jobId}`));
+  const res = await fetch(resolveInferenceUrl(`/infer/video/${jobId}`), { headers: inferenceHeaders() });
   if (!res.ok) {
     throw new Error((await safeErrorDetail(res)) ?? `Failed to fetch job status (HTTP ${res.status})`);
   }
@@ -74,16 +96,13 @@ async function safeErrorDetail(res: Response): Promise<string | null> {
 }
 
 export function jobVideoUrl(jobId: string): string {
-  return resolveUrl(`/infer/video/${jobId}/file`);
+  return `${resolveInferenceUrl(`/infer/video/${jobId}/file`)}?access_token=${encodeURIComponent(inferenceAccessToken)}`;
 }
 
 export function streamSocketUrl(): string {
-  // Second arg as base: harmless when resolveUrl() already returned an
-  // absolute URL (the URL constructor ignores the base then), required
-  // when it returned a same-origin relative path (empty VITE_API_URL) —
-  // `new URL("/ws/stream")` with no base throws.
-  const url = new URL(resolveUrl("/ws/stream"), window.location.origin);
+  const url = new URL(resolveInferenceUrl("/ws/stream"), window.location.origin);
   url.protocol = url.protocol === "https:" ? "wss:" : "ws:";
+  url.searchParams.set("access_token", inferenceAccessToken);
   return url.toString();
 }
 
