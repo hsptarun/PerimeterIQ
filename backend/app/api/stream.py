@@ -8,6 +8,7 @@ rules) persists correctly across frames.
 """
 from __future__ import annotations
 
+import asyncio
 import base64
 
 import cv2
@@ -54,7 +55,8 @@ async def stream_endpoint(websocket: WebSocket):
                 await websocket.send_json({"error": "Could not decode frame", "frame": frame_id})
                 continue
 
-            annotated, detections, alerts = process_frame(
+            annotated, detections, alerts = await asyncio.to_thread(
+                process_frame,
                 frame, detector, tracker, rule_engine, frame_id,
                 confidence_threshold=settings.default_confidence_threshold,
                 object_tracker=object_tracker,
