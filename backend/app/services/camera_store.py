@@ -16,6 +16,8 @@ class CameraStore:
     ):
         self.db_path = db_path
         self.supabase_url = supabase_url.rstrip("/")
+        if self.supabase_url.endswith("/rest/v1"):
+            self.supabase_url = self.supabase_url[:-len("/rest/v1")]
         self.supabase_key = supabase_key
         self.use_supabase = bool(self.supabase_url and self.supabase_key)
 
