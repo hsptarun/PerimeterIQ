@@ -6,6 +6,8 @@ from app.main import app
 
 def test_camera_crud_and_password_masking(tmp_path, monkeypatch):
     monkeypatch.setattr(settings, "camera_db_path", tmp_path / "cameras.db")
+    monkeypatch.setattr(settings, "supabase_url", "")
+    monkeypatch.setattr(settings, "supabase_key", "")
 
     with TestClient(app) as client:
         created = client.post(
@@ -47,6 +49,8 @@ def test_camera_crud_and_password_masking(tmp_path, monkeypatch):
 
 def test_invalid_camera_sources_are_rejected(tmp_path, monkeypatch):
     monkeypatch.setattr(settings, "camera_db_path", tmp_path / "cameras.db")
+    monkeypatch.setattr(settings, "supabase_url", "")
+    monkeypatch.setattr(settings, "supabase_key", "")
 
     with TestClient(app) as client:
         webcam = client.post(

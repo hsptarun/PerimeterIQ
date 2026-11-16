@@ -17,7 +17,11 @@ router = APIRouter(prefix="/api/cameras", tags=["Cameras"])
 
 
 def get_store() -> CameraStore:
-    return CameraStore(settings.camera_db_path)
+    return CameraStore(
+        settings.camera_db_path,
+        settings.supabase_url,
+        settings.supabase_key,
+    )
 
 
 def safe_source(source: str, source_type: str) -> str:
