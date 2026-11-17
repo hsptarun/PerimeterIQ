@@ -7,7 +7,9 @@ COPY . .
 # Baked in at build time since this is a static SPA build; override by
 # rebuilding the image with a different --build-arg for a different backend.
 ARG VITE_API_URL=http://localhost:8000
+ARG VITE_INFERENCE_API_URL
 ENV VITE_API_URL=$VITE_API_URL
+ENV VITE_INFERENCE_API_URL=$VITE_INFERENCE_API_URL
 RUN npm run build
 
 # --- serve stage ---
