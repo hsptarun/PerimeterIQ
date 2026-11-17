@@ -80,9 +80,13 @@ export function LivePage() {
     sendingRef.current = true;
     canvas.toBlob(
       (blob) => {
-        sendingRef.current = false;
         if (blob && socket.readyState === WebSocket.OPEN) {
-          blob.arrayBuffer().then((buf) => socket.send(buf));
+          blob.arrayBuffer().then((buf) => {
+            if (socket.readyState === WebSocket.OPEN) socket.send(buf);
+            else sendingRef.current = false;
+          }).catch(() => { sendingRef.current = false; });
+        } else {
+          sendingRef.current = false;
         }
       },
       "image/jpeg",
@@ -125,6 +129,7 @@ export function LivePage() {
     };
 
     socket.onmessage = (event) => {
+      sendingRef.current = false;
       const data = JSON.parse(event.data as string) as StreamMessage;
 
       if (data.error) {
@@ -141,11 +146,13 @@ export function LivePage() {
     };
 
     socket.onerror = () => {
+      sendingRef.current = false;
       setConnection("error");
       setErrorMessage("Live connection failed. Is the backend running?");
     };
 
     socket.onclose = () => {
+      sendingRef.current = false;
       setConnection((current) => (current === "error" ? current : "closed"));
       stopCapture();
     };
