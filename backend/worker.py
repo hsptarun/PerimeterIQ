@@ -1,8 +1,6 @@
 from contextlib import asynccontextmanager
-import hmac
 
-from fastapi import FastAPI, Request
-from fastapi.responses import JSONResponse
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.video import router as video_router
@@ -29,7 +27,7 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=["https" + "://" + "perimeteriq.onrender.com", "http" + "://" + "localhost:5173", "http" + "://" + "127.0.0.1:5173"],
     allow_methods=["GET", "POST", "OPTIONS"],
-    allow_headers=["Authorization", "Content-Type"],
+    allow_headers=["Content-Type"],
 )
 
 app.include_router(video_router)
@@ -39,22 +37,3 @@ app.include_router(stream_router)
 @app.get("/health")
 def health():
     return {"status": "ok", "device": settings.resolved_device()}
-
-
-@app.middleware("http")
-async def verify_inference_access(request: Request, call_next):
-    if request.method != "OPTIONS" and (request.url.path.startswith("/infer/video") or request.url.path == "/auth/verify"):
-        supplied = request.headers.get("authorization", "")
-        token = supplied.removeprefix("Bearer ").strip() or request.query_params.get("access_token", "")
-        if not settings.inference_token or not hmac.compare_digest(token, settings.inference_token):
-            return JSONResponse(status_code=401, content={"detail": "Invalid or missing demo access code"})
-    return await call_next(request)
-
-
-@app.post("/auth/verify")
-async def verify_access(request: Request):
-    supplied = request.headers.get("authorization", "")
-    token = supplied.removeprefix("Bearer ").strip()
-    if not settings.inference_token or not hmac.compare_digest(token, settings.inference_token):
-        return JSONResponse(status_code=401, content={"detail": "Invalid access code"})
-    return {"valid": True}
